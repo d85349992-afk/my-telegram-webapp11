@@ -3,7 +3,7 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
-const API_URL = "http://de-bots3.h1cloud.net:25087";
+const API_URL = "https://mortgages-answered-giving-eventually.trycloudflare.com";
 
 const loading = document.getElementById("loading");
 const content = document.getElementById("content");
