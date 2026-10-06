@@ -1,119 +1,248 @@
-const tg = window.Telegram.WebApp;
+const tg = window.Telegram && window.Telegram.WebApp;
 
-tg.ready();
-tg.expand();
+if (!tg) {
+    document.getElementById("status").textContent =
+        "❌ WebApp открыт не внутри Telegram.";
+} else {
+    tg.ready();
+    tg.expand();
 
-const API_URL = "https://mortgages-answered-giving-eventually.trycloudflare.com";
+    // Адрес API твоего Telegram-бота
+    const API_URL =
+        "https://mortgages-answered-giving-eventually.trycloudflare.com";
 
-const loading = document.getElementById("loading");
-const content = document.getElementById("content");
+    const status = document.getElementById("status");
+    const profile = document.getElementById("profile");
+    const inventory = document.getElementById("inventory");
 
-function showError(message) {
-    loading.innerHTML = `
-        <div class="error">
-            ❌ ${message}
-        </div>
-    `;
-}
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
 
-async function loadPlayer() {
-    try {
-        const initData = tg.initData;
+    function showError(message) {
+        status.className = "status error";
+        status.textContent = "❌ " + message;
+    }
 
-        if (!initData) {
-            showError("Откройте инвентарь через Telegram.");
+    function renderList(containerId, items, emptyText) {
+        const container = document.getElementById(containerId);
+
+        if (!container) {
             return;
         }
 
-        const response = await fetch(`${API_URL}/api/me`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                initData: initData
-            })
-        });
+        container.innerHTML = "";
 
-        if (!response.ok) {
-            throw new Error("Ошибка сервера: " + response.status);
+        if (!items || !items.length) {
+            container.innerHTML =
+                `<div class="empty">${escapeHtml(emptyText)}</div>`;
+            return;
         }
 
-        const player = await response.json();
+        for (const item of items) {
+            const row = document.createElement("div");
 
-        loading.style.display = "none";
-        content.style.display = "block";
+            row.className = "inventory-item";
 
-        renderPlayer(player);
+            row.innerHTML = `
+                <div class="item-name">
+                    ${escapeHtml(item.name || "Предмет")}
+                </div>
 
-    } catch (error) {
-        console.error(error);
-        showError("Не удалось загрузить данные игрока.");
-    }
-}
+                <div class="item-count">
+                    ×${Number(item.count ?? 1)}
+                </div>
+            `;
 
-function renderPlayer(player) {
-    document.getElementById("player-name").textContent =
-        player.name || "Игрок";
-
-    document.getElementById("player-race").textContent =
-        player.race || "Человек";
-
-    document.getElementById("player-floor").textContent =
-        player.floor ?? 1;
-
-    document.getElementById("player-hp").textContent =
-        `${player.hp ?? 0}/${player.max_hp ?? 0}`;
-
-    document.getElementById("player-energy").textContent =
-        `${player.energy ?? 0}%`;
-
-    document.getElementById("player-strength").textContent =
-        player.str ?? 0;
-
-    document.getElementById("player-endurance").textContent =
-        player.end ?? 0;
-
-    document.getElementById("player-agility").textContent =
-        player.agi ?? 0;
-
-    document.getElementById("player-gold").textContent =
-        player.gold ?? 0;
-
-    renderInventory(player.inventory || []);
-}
-
-function renderInventory(inventory) {
-    const container = document.getElementById("inventory");
-
-    container.innerHTML = "";
-
-    if (!inventory.length) {
-        container.innerHTML = `
-            <div class="empty">
-                🎒 Инвентарь пуст
-            </div>
-        `;
-        return;
+            container.appendChild(row);
+        }
     }
 
-    inventory.forEach(item => {
-        const element = document.createElement("div");
+    function renderEquipment(equip) {
+        const container = document.getElementById("equip");
 
-        element.className = "inventory-item";
+        if (!container) {
+            return;
+        }
 
-        element.innerHTML = `
-            <div class="item-name">
-                ${item.name || "Предмет"}
-            </div>
+        const labels = {
+            weapon: "⚔️ Оружие",
+            helmet: "🪖 Шлем",
+            chest: "🛡 Доспех",
+            legs: "👖 Поножи",
+            shield: "🛡 Щит",
+            ring: "💍 Кольцо",
+            badge: "🎖 Значок"
+        };
 
-            <div class="item-count">
-                ×${item.count ?? 1}
-            </div>
-        `;
+        const entries = Object.entries(labels).map(([slot, label]) => {
+            const value = equip?.[slot];
 
-        container.appendChild(element);
-    });
+            return `
+                <div class="inventory-item">
+                    <div class="item-name">
+                        ${label}
+                    </div>
+
+                    <div class="item-count">
+                        ${escapeHtml(value || "—")}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = entries.join("");
+    }
+
+    function renderPlayer(player) {
+        document.getElementById("playerName").textContent =
+            player.name || "Игрок";
+
+        document.getElementById("playerRace").textContent =
+            player.race || "Не выбрана";
+
+        document.getElementById("floor").textContent =
+            player.floor ?? 1;
+
+        document.getElementById("hp").textContent =
+            `${player.hp ?? 0}/${player.max_hp ?? 0}`;
+
+        document.getElementById("energy").textContent =
+            `${player.energy ?? 0}%`;
+
+        document.getElementById("clan").textContent =
+            player.clan || "Нет";
+
+        document.getElementById("str").textContent =
+            player.str ?? 0;
+
+        document.getElementById("end").textContent =
+            player.end ?? 0;
+
+        document.getElementById("agi").textContent =
+            player.agi ?? 0;
+
+        document.getElementById("gold").textContent =
+            `${player.gold ?? 0} 🪙`;
+
+        document.getElementById("pet").textContent =
+            `🐾 Питомец: ${player.pet || "нет"}`;
+
+        renderEquipment(player.equip || {});
+
+        renderList(
+            "potions",
+            player.potions || [],
+            "🧪 Зелий нет"
+        );
+
+        renderList(
+            "bag",
+            player.bag || [],
+            "🎒 Предметов нет"
+        );
+
+        const bagCount = (player.bag || []).reduce(
+            (sum, item) =>
+                sum + Math.max(0, Number(item.count || 0)),
+            0
+        );
+
+        const potionCount = (player.potions || []).reduce(
+            (sum, item) =>
+                sum + Math.max(0, Number(item.count || 0)),
+            0
+        );
+
+        const used = bagCount + potionCount;
+
+        const slots = document.getElementById("slots");
+
+        if (slots) {
+            slots.textContent =
+                `${used}/${player.inv_size ?? 20}`;
+        }
+
+        status.className = "status hidden";
+
+        profile.classList.remove("hidden");
+        inventory.classList.remove("hidden");
+    }
+
+    async function loadPlayer() {
+        try {
+            const initData = tg.initData;
+
+            if (!initData) {
+                showError(
+                    "Откройте WebApp через Telegram, а не обычной ссылкой."
+                );
+                return;
+            }
+
+            const response = await fetch(
+                `${API_URL}/api/me`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        initData: initData
+                    })
+                }
+            );
+
+            const data =
+                await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                console.error(
+                    "WebApp API error:",
+                    response.status,
+                    data
+                );
+
+                if (response.status === 401) {
+                    throw new Error(
+                        "Telegram-авторизация не прошла. Откройте WebApp из Telegram."
+                    );
+                }
+
+                throw new Error(
+                    data.error ||
+                    `Ошибка сервера: ${response.status}`
+                );
+            }
+
+            renderPlayer(data);
+
+        } catch (error) {
+            console.error(error);
+
+            showError(
+                error.message ||
+                "Не удалось загрузить данные игрока."
+            );
+        }
+    }
+
+    const closeButton =
+        document.getElementById("closeBtn");
+
+    if (closeButton) {
+        closeButton.addEventListener(
+            "click",
+            () => tg.close()
+        );
+    }
+
+    loadPlayer();
 }
-
-loadPlayer();
